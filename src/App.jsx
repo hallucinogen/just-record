@@ -183,22 +183,26 @@ function App() {
   }
 
   function afterScreenCaptured(screenStream) {
+
+    screenStream.width = window.screen.width;
+    screenStream.height = window.screen.height;
+    const cameraWidth = parseInt((20/100) * screenStream.width);
+    const cameraHeight = parseInt((20/100) * screenStream.height);
+
     navigator.mediaDevices
       .getUserMedia({
         video:  {
-          width: 160,
-          height: 120,
+          width: cameraWidth,
+          height: cameraHeight,
           frameRate: 15
         },
         audio: true,
       })
       .then(async function (cameraStream) {
         screenStream.fullcanvas = true;
-        screenStream.width = 1920; // or 3840
-        screenStream.height = 1080; // or 2160
 
-        cameraStream.width = parseInt((15 / 100) * screenStream.width);
-        cameraStream.height = parseInt((15 / 100) * screenStream.width);
+        cameraStream.width = cameraWidth;
+        cameraStream.height = cameraHeight;
         cameraStream.top = screenStream.height - cameraStream.height;
         cameraStream.left = screenStream.width - cameraStream.width;
 
@@ -278,24 +282,6 @@ function App() {
             });
           }
         });
-        // open pip mode
-        // let t = setTimeout(async () => {
-        //   try {
-        //     // If there is no element in Picture-in-Picture yet, request for it
-        //     if (videoPreview !== document.pictureInPictureElement) {
-        //       await videoPreview.requestPictureInPicture();
-        //     }
-        //     // If Picture-in-Picture already exists, exit the mode
-        //     else {
-        //       await document.exitPictureInPicture();
-        //     }
-        //   } catch (error) {
-        //     console.log(`Oh Horror! ${error}`);
-        //   } finally {
-        //     console.log("started");
-        //     clearTimeout(t);
-        //   }
-        // }, 1000);
       });
   }
 
@@ -365,28 +351,11 @@ function App() {
 
   return (
     <div className="App">
-      <h2>Youtube Tutorial Maker - By Arghyadeep</h2>
+      <h2>Just Record</h2>
       <p className="info">
         Not supported in small devices. Please open in desktop browser
       </p>
-      <p style={{ textAlign: "center" }}>
-        Supported Browser:{" "}
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Screen Capture
-        </a>
-        ,{" "}
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Camera & Audio
-        </a>
-      </p>
+
       <div className="layout">
         {!permissionAllowed && (
           <div>
@@ -419,27 +388,6 @@ function App() {
             >
               Your browser does not support the video tag.
             </video>
-            {/* <div
-              style={{
-                display: "flex",
-                width: "100%",
-                justifyContent: "center",
-                marginTop: 16,
-              }}
-            >
-              <span>
-                Camera
-                <select
-                  placeholder="Select Camera Position"
-                  style={{ padding: "4px 8px", marginLeft: 8 }}
-                >
-                  <option>Top right</option>
-                  <option>Top left</option>
-                  <option>Bottom right</option>
-                  <option>Bottom Left</option>
-                </select>
-              </span>
-            </div> */}
             <div
               style={{
                 display: "flex",
@@ -473,30 +421,6 @@ function App() {
                   Start
                 </button>
               )}
-              {/* {started && (
-                <button
-                  style={{
-                    border: "1px solid #111",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    margin: "auto",
-                    fontSize: 16,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 8,
-                    width: 120,
-                    backgroundColor: "#fff",
-                  }}
-                >
-                  <img
-                    src={pause}
-                    alt="pause"
-                    style={{ height: 36, marginRight: 8 }}
-                  ></img>{" "}
-                  Pause
-                </button>
-              )} */}
               {started && (
                 <button
                   style={{
@@ -526,16 +450,6 @@ function App() {
           </div>
         )}
       </div>
-      <p style={{ textAlign: "center", marginTop: 24 }}>
-        Devloped by{" "}
-        <a
-          href="https://github.com/argodeep?tab=repositories"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Arghyadeep
-        </a>
-      </p>
     </div>
   );
 }
