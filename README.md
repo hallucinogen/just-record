@@ -7,4 +7,3 @@ Create your youtube tutorial video.
 *No recording limit but long recording may create performance issue.
 *FREE! Open source. Use as you want.
 
-[Open Here](https://argodeep.github.io/Yotube-Tutorial-Maker/)

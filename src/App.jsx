@@ -11,6 +11,123 @@ var mixer;
 var mediaRecorder;
 var recordedBlobs;
 
+function fullCanvasRenderHandler(stream, textToDisplay) {
+  // on-video-render:
+  // called as soon as this video stream is drawn (painted or recorded) on canvas2d surface
+  stream.onRender = function (context, x, y, width, height, idx) {
+    context.font = "50px Georgia";
+    var measuredTextWidth = parseInt(
+      context.measureText(textToDisplay).width
+    );
+    x = x + (parseInt(width - measuredTextWidth) - 40);
+    y = y + 80;
+    context.strokeStyle = "rgb(255, 0, 0)";
+    context.fillStyle = "rgba(255, 255, 0, .5)";
+    roundRect(context, x - 20, y - 55, measuredTextWidth + 40, 75, 20, true);
+    var gradient = context.createLinearGradient(0, 0, width * 2, 0);
+    gradient.addColorStop("0", "magenta");
+    gradient.addColorStop("0.5", "blue");
+    gradient.addColorStop("1.0", "red");
+    context.fillStyle = gradient;
+    context.fillText(textToDisplay, x, y);
+  };
+}
+
+function normalVideoRenderHandler(stream, textToDisplay, callback) {
+  // on-video-render:
+  // called as soon as this video stream is drawn (painted or recorded) on canvas2d surface
+  stream.onRender = function (context, x, y, width, height, idx, ignoreCB) {
+    if (!ignoreCB && callback) {
+      callback(context, x, y, width, height, idx, textToDisplay);
+      return;
+    }
+
+    context.font = "40px Georgia";
+    var measuredTextWidth = parseInt(
+      context.measureText(textToDisplay).width
+    );
+    x = x + parseInt(width - measuredTextWidth) / 2;
+    y = context.canvas.height - height + 50;
+    context.strokeStyle = "rgb(255, 0, 0)";
+    context.fillStyle = "rgba(255, 255, 0, .5)";
+    roundRect(context, x - 20, y - 35, measuredTextWidth + 40, 45, 20, true);
+    var gradient = context.createLinearGradient(0, 0, width * 2, 0);
+    gradient.addColorStop("0", "magenta");
+    gradient.addColorStop("0.5", "blue");
+    gradient.addColorStop("1.0", "red");
+    context.fillStyle = gradient;
+    context.fillText(textToDisplay, x, y);
+  };
+}
+
+/**
+ * Draws a rounded rectangle using the current state of the canvas.
+ * If you omit the last three params, it will draw a rectangle
+ * outline with a 5 pixel border radius
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Number} x The top left x coordinate
+ * @param {Number} y The top left y coordinate
+ * @param {Number} width The width of the rectangle
+ * @param {Number} height The height of the rectangle
+ * @param {Number} [radius = 5] The corner radius; It can also be an object
+ *                 to specify different radii for corners
+ * @param {Number} [radius.tl = 0] Top left
+ * @param {Number} [radius.tr = 0] Top right
+ * @param {Number} [radius.br = 0] Bottom right
+ * @param {Number} [radius.bl = 0] Bottom left
+ * @param {Boolean} [fill = false] Whether to fill the rectangle.
+ * @param {Boolean} [stroke = true] Whether to stroke the rectangle.
+ */
+// via: http://stackoverflow.com/a/3368118/552182
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  if (typeof stroke == "undefined") {
+    stroke = true;
+  }
+  if (typeof radius === "undefined") {
+    radius = 5;
+  }
+  if (typeof radius === "number") {
+    radius = {
+      tl: radius,
+      tr: radius,
+      br: radius,
+      bl: radius,
+    };
+  } else {
+    var defaultRadius = {
+      tl: 0,
+      tr: 0,
+      br: 0,
+      bl: 0,
+    };
+    for (var side in defaultRadius) {
+      radius[side] = radius[side] || defaultRadius[side];
+    }
+  }
+  ctx.beginPath();
+  ctx.moveTo(x + radius.tl, y);
+  ctx.lineTo(x + width - radius.tr, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+  ctx.lineTo(x + width, y + height - radius.br);
+  ctx.quadraticCurveTo(
+    x + width,
+    y + height,
+    x + width - radius.br,
+    y + height
+  );
+  ctx.lineTo(x + radius.bl, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+  ctx.lineTo(x, y + radius.tl);
+  ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+  ctx.closePath();
+  if (fill) {
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.stroke();
+  }
+}
+
 function App() {
   const [permissionAllowed, setPermission] = useState(false);
   const [started, setStart] = useState(false);
@@ -18,7 +135,8 @@ function App() {
   useEffect(() => {
     let handlePermission = async () => {
       mixerOptions.value = "camera-screen";
-      let camera = await cameraStream();
+      let camera = await startCameraAndScreen();
+      console.log(permissionAllowed);
       if (camera === null) {
         setPermission(false);
       } else {
@@ -26,7 +144,7 @@ function App() {
       }
     };
     handlePermission();
-  }, [permissionAllowed]);
+  }, []);
 
   function addStreamStopListener(stream, callback) {
     stream.addEventListener(
@@ -65,146 +183,24 @@ function App() {
     });
   }
 
-  function fullCanvasRenderHandler(stream, textToDisplay) {
-    // on-video-render:
-    // called as soon as this video stream is drawn (painted or recorded) on canvas2d surface
-    stream.onRender = function (context, x, y, width, height, idx) {
-      context.font = "50px Georgia";
-      var measuredTextWidth = parseInt(
-        context.measureText(textToDisplay).width
-      );
-      x = x + (parseInt(width - measuredTextWidth) - 40);
-      y = y + 80;
-      context.strokeStyle = "rgb(255, 0, 0)";
-      context.fillStyle = "rgba(255, 255, 0, .5)";
-      roundRect(context, x - 20, y - 55, measuredTextWidth + 40, 75, 20, true);
-      var gradient = context.createLinearGradient(0, 0, width * 2, 0);
-      gradient.addColorStop("0", "magenta");
-      gradient.addColorStop("0.5", "blue");
-      gradient.addColorStop("1.0", "red");
-      context.fillStyle = gradient;
-      context.fillText(textToDisplay, x, y);
-    };
-  }
-
-  function normalVideoRenderHandler(stream, textToDisplay, callback) {
-    // on-video-render:
-    // called as soon as this video stream is drawn (painted or recorded) on canvas2d surface
-    stream.onRender = function (context, x, y, width, height, idx, ignoreCB) {
-      if (!ignoreCB && callback) {
-        callback(context, x, y, width, height, idx, textToDisplay);
-        return;
-      }
-
-      context.font = "40px Georgia";
-      var measuredTextWidth = parseInt(
-        context.measureText(textToDisplay).width
-      );
-      x = x + parseInt(width - measuredTextWidth) / 2;
-      y = context.canvas.height - height + 50;
-      context.strokeStyle = "rgb(255, 0, 0)";
-      context.fillStyle = "rgba(255, 255, 0, .5)";
-      roundRect(context, x - 20, y - 35, measuredTextWidth + 40, 45, 20, true);
-      var gradient = context.createLinearGradient(0, 0, width * 2, 0);
-      gradient.addColorStop("0", "magenta");
-      gradient.addColorStop("0.5", "blue");
-      gradient.addColorStop("1.0", "red");
-      context.fillStyle = gradient;
-      context.fillText(textToDisplay, x, y);
-    };
-  }
-
-  /**
-   * Draws a rounded rectangle using the current state of the canvas.
-   * If you omit the last three params, it will draw a rectangle
-   * outline with a 5 pixel border radius
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {Number} x The top left x coordinate
-   * @param {Number} y The top left y coordinate
-   * @param {Number} width The width of the rectangle
-   * @param {Number} height The height of the rectangle
-   * @param {Number} [radius = 5] The corner radius; It can also be an object
-   *                 to specify different radii for corners
-   * @param {Number} [radius.tl = 0] Top left
-   * @param {Number} [radius.tr = 0] Top right
-   * @param {Number} [radius.br = 0] Bottom right
-   * @param {Number} [radius.bl = 0] Bottom left
-   * @param {Boolean} [fill = false] Whether to fill the rectangle.
-   * @param {Boolean} [stroke = true] Whether to stroke the rectangle.
-   */
-  // via: http://stackoverflow.com/a/3368118/552182
-  function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
-    if (typeof stroke == "undefined") {
-      stroke = true;
-    }
-    if (typeof radius === "undefined") {
-      radius = 5;
-    }
-    if (typeof radius === "number") {
-      radius = {
-        tl: radius,
-        tr: radius,
-        br: radius,
-        bl: radius,
-      };
-    } else {
-      var defaultRadius = {
-        tl: 0,
-        tr: 0,
-        br: 0,
-        bl: 0,
-      };
-      for (var side in defaultRadius) {
-        radius[side] = radius[side] || defaultRadius[side];
-      }
-    }
-    ctx.beginPath();
-    ctx.moveTo(x + radius.tl, y);
-    ctx.lineTo(x + width - radius.tr, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
-    ctx.lineTo(x + width, y + height - radius.br);
-    ctx.quadraticCurveTo(
-      x + width,
-      y + height,
-      x + width - radius.br,
-      y + height
-    );
-    ctx.lineTo(x + radius.bl, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
-    ctx.lineTo(x, y + radius.tl);
-    ctx.quadraticCurveTo(x, y, x + radius.tl, y);
-    ctx.closePath();
-    if (fill) {
-      ctx.fill();
-    }
-    if (stroke) {
-      ctx.stroke();
-    }
-  }
-
   function afterScreenCaptured(screenStream) {
-
-    screenStream.width = window.screen.width;
-    screenStream.height = window.screen.height;
-    const cameraWidth = parseInt((20/100) * screenStream.width);
-    const cameraHeight = parseInt((20/100) * screenStream.height);
-
-    navigator.mediaDevices
-      .getUserMedia({
-        video:  {
-          width: cameraWidth,
-          height: cameraHeight,
-          frameRate: 15
-        },
-        audio: true,
-      })
-      .then(async function (cameraStream) {
+    
+    cameraStream().then(async function (cameraStream) {
         screenStream.fullcanvas = true;
+
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+
+        const cameraWidth = parseInt((20/100) * screenWidth);
+        const cameraHeight = parseInt((20/100) * screenHeight);
 
         cameraStream.width = cameraWidth;
         cameraStream.height = cameraHeight;
-        cameraStream.top = screenStream.height - cameraStream.height;
-        cameraStream.left = screenStream.width - cameraStream.width;
+        cameraStream.top = screenHeight - cameraHeight;
+        cameraStream.left = screenWidth - cameraWidth;
+
+        screenStream.width = screenWidth;
+        screenStream.height = screenHeight;
 
         // fullCanvasRenderHandler(screenStream, "");
         // normalVideoRenderHandler(cameraStream, "");
@@ -215,37 +211,9 @@ function App() {
         mixer.startDrawingFrames();
         videoPreview = document.querySelector("video");
         videoPreview.srcObject = mixer.getMixedStream();
-        recordedBlobs = [];
-        let options = { mimeType: "video/webm;codecs=vp9,opus" };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          console.error(`${options.mimeType} is not supported`);
-          options = { mimeType: "video/webm;codecs=vp8,opus" };
-          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            console.error(`${options.mimeType} is not supported`);
-            options = { mimeType: "video/webm" };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-              console.error(`${options.mimeType} is not supported`);
-              options = { mimeType: "" };
-            }
-          }
-        }
-
-        try {
-          mediaRecorder = new MediaRecorder(mixer.getMixedStream(), options);
-        } catch (e) {
-          console.error("Exception while creating MediaRecorder:", e);
-          return;
-        }
-
-        console.log(
-          "Created MediaRecorder",
-          mediaRecorder,
-          "with options",
-          options
-        );
-        mediaRecorder.onstop = async (event) => {
-          console.log("Recorder stopped: ", event);
-          console.log("Recorded Blobs: ", recordedBlobs);
+        
+        // stop listener
+        addStreamStopListener(screenStream, async function () {
           mixer.releaseStreams();
           videoPreview.pause();
           videoPreview.src = null;
@@ -258,57 +226,53 @@ function App() {
           screenStream.getTracks().forEach(function (track) {
             track.stop();
           });
-          download();
-        };
-        mediaRecorder.ondataavailable = handleDataAvailable;
-        mediaRecorder.start();
-        console.log("MediaRecorder started", mediaRecorder);
-        setStart(true);
-        // stop listner
-        addStreamStopListener(screenStream, async function () {
-          if (mediaRecorder.state !== "inactive") {
-            mediaRecorder.stop();
-            mixer.releaseStreams();
-            videoPreview.pause();
-            videoPreview.src = null;
-            if (videoPreview === document.pictureInPictureElement) {
-              await document.exitPictureInPicture();
-            }
-            cameraStream.getTracks().forEach(function (track) {
-              track.stop();
-            });
-            screenStream.getTracks().forEach(function (track) {
-              track.stop();
-            });
-          }
         });
       });
   }
 
-  function getMixedCameraAndScreen() {
-    if (permissionAllowed) {
-      if (navigator.getDisplayMedia) {
-        navigator.getDisplayMedia({ video: true }).then((screenStream) => {
-          afterScreenCaptured(screenStream);
-        });
-      } else if (navigator.mediaDevices.getDisplayMedia) {
-        navigator.mediaDevices
-          .getDisplayMedia({ video: true })
-          .then((screenStream) => {
-            afterScreenCaptured(screenStream);
-          });
-      } else {
-        alert("getDisplayMedia API is not supported by this browser.");
-      }
+  async function startCameraAndScreen() {
+    let captureStream = null;
+    
+    try {
+      captureStream = await screenStream().then((screenStream) => {
+        afterScreenCaptured(screenStream);
+      });
+    } catch (err) {
+      console.error("Error: " + err);
     }
+
+    return captureStream;
+  }
+
+  async function screenStream() {
+    if (navigator.getDisplayMedia) {
+      return navigator.getDisplayMedia({ video: true });
+    } else if (navigator.mediaDevices.getDisplayMedia) {
+      return navigator.mediaDevices
+          .getDisplayMedia({ video: true });
+    }
+
+    alert("getDisplayMedia API is not supported by this browser.");
+    return null;
   }
 
   async function cameraStream() {
     let captureStream = null;
+    
     try {
-      captureStream = await navigator.mediaDevices.getUserMedia({
+      const screenWidth = window.screen.width;
+      const screenHeight = window.screen.height;
+  
+      const cameraWidth = parseInt((20/100) * screenWidth);
+      const cameraHeight = parseInt((20/100) * screenHeight);
+
+      captureStream = navigator.mediaDevices.getUserMedia({
+        video:  {
+          width: cameraWidth,
+          height: cameraHeight,
+          frameRate: 15
+        },
         audio: true,
-        video: true,
       });
     } catch (err) {
       console.error("Error: " + err);
@@ -317,7 +281,43 @@ function App() {
   }
 
   function startRecording() {
-    getMixedCameraAndScreen();
+    recordedBlobs = [];
+    let options = { mimeType: "video/webm;codecs=vp9,opus" };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      console.error(`${options.mimeType} is not supported`);
+      options = { mimeType: "video/webm;codecs=vp8,opus" };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        console.error(`${options.mimeType} is not supported`);
+        options = { mimeType: "video/webm" };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          console.error(`${options.mimeType} is not supported`);
+          options = { mimeType: "" };
+        }
+      }
+    }
+
+    try {
+      mediaRecorder = new MediaRecorder(mixer.getMixedStream(), options);
+    } catch (e) {
+      console.error("Exception while creating MediaRecorder:", e);
+      return;
+    }
+
+    console.log(
+      "Created MediaRecorder",
+      mediaRecorder,
+      "with options",
+      options
+    );
+    mediaRecorder.onstop = async (event) => {
+      console.log("Recorder stopped: ", event);
+      console.log("Recorded Blobs: ", recordedBlobs);
+      download();
+    };
+    mediaRecorder.ondataavailable = handleDataAvailable;
+    mediaRecorder.start();
+    console.log("MediaRecorder started", mediaRecorder);
+    setStart(true);
   }
 
   function handleDataAvailable(event) {
@@ -357,19 +357,7 @@ function App() {
       </p>
 
       <div className="layout">
-        {!permissionAllowed && (
-          <div>
-            <video
-              src=""
-              style={{ backgroundColor: "#444", height: 200 }}
-            ></video>
-            <p>
-              <span style={{ fontWeight: 600 }}>Note: </span>You need to allow
-              camera & audio permission to start recording
-            </p>
-          </div>
-        )}
-        {permissionAllowed && (
+        {permissionAllowed ? (
           <div
             style={{
               display: "flex",
@@ -447,6 +435,20 @@ function App() {
                 </button>
               )}
             </div>
+          </div>
+        ) : (
+          <div>
+            <video
+              src=""
+              style={{ backgroundColor: "#444", height: 200 }}
+            ></video>
+            <p>
+              <span style={{ fontWeight: 600 }}>Note: </span>You need to allow
+              camera, audio, and screen sharing permission to start recording.
+            </p>
+            <p>
+              <span>Refresh the page and try again.</span>
+            </p>
           </div>
         )}
       </div>
