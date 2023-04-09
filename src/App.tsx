@@ -3,11 +3,12 @@ import "./App.css";
 import MultiStreamsMixer from "multistreamsmixer";
 import Control from "./Control";
 import NoPermission from "./NoPermission"
+import { useDrag } from "react-use-gesture";
 
-var videoPreview = document.querySelector("video");
-var mixer;
-var mediaRecorder;
-var recordedBlobs;
+var videoPreview: HTMLVideoElement;
+let mixer: MultiStreamsMixer;
+let mediaRecorder: MediaRecorder;
+let recordedBlobs = [];
 
 function addStreamStopListener(stream, callback) {
   stream.addEventListener(
@@ -49,6 +50,15 @@ function addStreamStopListener(stream, callback) {
 const App: React.FC = () => {
   const [permissionAllowed, setPermission] = useState(false);
   const [started, setStart] = useState(false);
+  const cameraSelfieRef = React.useRef(null);
+
+  const bind = useDrag(
+    ({ offset: [x, y] }) => {
+      const selfieElement = cameraSelfieRef.current;
+      selfieElement.style.transform = `translate(${x}px, ${y}px)`;
+    },
+    { eventOptions: { passive: false } }
+  );
 
   useEffect(() => {
     let handlePermission = async () => {
@@ -84,8 +94,10 @@ const App: React.FC = () => {
       mixer.frameInterval = 1;
       mixer.startDrawingFrames();
 
-      videoPreview = document.querySelector("video");
-      videoPreview.srcObject = mixer.getMixedStream();
+      videoPreview = document.getElementById("screen") as HTMLVideoElement;
+      videoPreview.srcObject = screenStream;
+      const cameraPreview = document.getElementById("camera") as HTMLVideoElement;
+      cameraPreview.srcObject = cameraStream;
 
       // stop listener
       addStreamStopListener(screenStream, async function () {
@@ -234,7 +246,7 @@ const App: React.FC = () => {
           }}
         >
           <video
-            id="video"
+            id="screen"
             style={{ height: permissionAllowed ? "100vh" : "80vh", backgroundColor: "#444" }}
             autoPlay
             muted
@@ -242,6 +254,20 @@ const App: React.FC = () => {
           >
             Your browser does not support the video tag.
           </video>
+          <div
+            className="camera-selfie"
+            ref={cameraSelfieRef}
+            {...bind()}>
+            <video
+              className="camera-selfie"
+              id="camera"
+              autoPlay
+              muted
+              playsInline
+            >
+              Your browser does not support the video tag.
+            </video>
+          </div>
 
           {!permissionAllowed ? <NoPermission /> : <Control started={started} onStart={startRecording} onStop={stopRecording} />}
         </div>

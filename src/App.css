@@ -50,3 +50,14 @@ video {
   transform: translateX(-50%);
   z-index: 2;
 }
+
+.camera-selfie {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2;
+  height: 200px;
+  width: 200px;
+  object-fit: cover;
+  border-radius: 50%;
+}
