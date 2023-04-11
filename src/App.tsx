@@ -51,11 +51,22 @@ const App: React.FC = () => {
   const [permissionAllowed, setPermission] = useState(false);
   const [started, setStart] = useState(false);
   const cameraSelfieRef = React.useRef(null);
+  const [cameraStreamState, setCameraStreamState] = useState(null);
+  const [xx, setX] = useState(0);
+  const [yy, setY] = useState(0);
+
+  function updateCameraStreamPosition(x, y) {
+    if (cameraStreamState) {
+      cameraStreamState.top = yy + y;
+      cameraStreamState.left = xx + x;
+    }
+  }
 
   const bind = useDrag(
     ({ offset: [x, y] }) => {
       const selfieElement = cameraSelfieRef.current;
       selfieElement.style.transform = `translate(${x}px, ${y}px)`;
+      updateCameraStreamPosition(x, y);
     },
     { eventOptions: { passive: false } }
   );
@@ -75,6 +86,7 @@ const App: React.FC = () => {
   function afterScreenCaptured(screenStream) {
     cameraStream().then(async function (cameraStream) {
       screenStream.fullcanvas = true;
+      setCameraStreamState(cameraStream);
 
       const screenWidth = window.screen.width;
       const screenHeight = window.screen.height;
@@ -84,8 +96,11 @@ const App: React.FC = () => {
 
       cameraStream.width = cameraWidth;
       cameraStream.height = cameraHeight;
-      cameraStream.top = screenHeight - cameraHeight;
-      cameraStream.left = screenWidth - cameraWidth;
+      cameraStream.top = screenHeight - cameraHeight - 20;
+      cameraStream.left = screenWidth - cameraWidth - 20;
+
+      setX(cameraStream.left);
+      setY(cameraStream.top);
 
       screenStream.width = screenWidth;
       screenStream.height = screenHeight;
@@ -95,9 +110,10 @@ const App: React.FC = () => {
       mixer.startDrawingFrames();
 
       videoPreview = document.getElementById("screen") as HTMLVideoElement;
-      videoPreview.srcObject = screenStream;
-      const cameraPreview = document.getElementById("camera") as HTMLVideoElement;
-      cameraPreview.srcObject = cameraStream;
+      videoPreview.srcObject = mixer.getMixedStream();
+      //videoPreview.srcObject = screenStream;
+      // const cameraPreview = document.getElementById("camera") as HTMLVideoElement;
+      // cameraPreview.srcObject = cameraStream;
 
       // stop listener
       addStreamStopListener(screenStream, async function () {
@@ -258,15 +274,6 @@ const App: React.FC = () => {
             className="camera-selfie"
             ref={cameraSelfieRef}
             {...bind()}>
-            <video
-              className="camera-selfie"
-              id="camera"
-              autoPlay
-              muted
-              playsInline
-            >
-              Your browser does not support the video tag.
-            </video>
           </div>
 
           {!permissionAllowed ? <NoPermission /> : <Control started={started} onStart={startRecording} onStop={stopRecording} />}

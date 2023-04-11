@@ -7,9 +7,6 @@
     "background": {
       "service_worker": "background.js"
     },
-    "permissions": [
-      "tabs"
-    ],
     "icons": {
       "16": "favicon-16x16.png",
       "128": "favicon-16x16.png"
