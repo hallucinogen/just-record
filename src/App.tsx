@@ -4,11 +4,48 @@ import MultiStreamsMixer from "multistreamsmixer";
 import Control from "./Control";
 import NoPermission from "./NoPermission"
 import { useDrag } from "react-use-gesture";
+import { openDB } from "idb";
 
+const dbName = "videoChunksDB";
+const storeName = "videoChunks";
+let db;
 var videoPreview: HTMLVideoElement;
 let mixer: MultiStreamsMixer;
 let mediaRecorder: MediaRecorder;
 let recordedBlobs = [];
+let chunkIndex = 0;
+
+class IndexedDBStream {
+  db: any;
+  storeName: string;
+  chunkCount: number;
+  currentChunk: number;
+
+  constructor(db: any, storeName: string, chunkCount: number) {
+    this.db = db;
+    this.storeName = storeName;
+    this.chunkCount = chunkCount;
+    this.currentChunk = 0;
+  }
+
+  async getNextChunk() {
+    if (this.currentChunk < this.chunkCount) {
+      const chunk = await this.db.get(this.storeName, this.currentChunk);
+      this.currentChunk++;
+      return chunk;
+    } else {
+      return null;
+    }
+  }
+}
+
+async function initDb() {
+  db = await openDB(dbName, 1, {
+    upgrade(db) {
+      db.createObjectStore(storeName);
+    },
+  });
+}
 
 function addStreamStopListener(stream, callback) {
   stream.addEventListener(
@@ -81,6 +118,7 @@ const App: React.FC = () => {
       }
     };
     handlePermission();
+    initDb();
   }, []);
 
   function afterScreenCaptured(screenStream) {
@@ -183,6 +221,7 @@ const App: React.FC = () => {
 
   function startRecording() {
     recordedBlobs = [];
+    chunkIndex = 0;
     let options = { mimeType: "video/webm;codecs=vp9,opus" };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
       console.error(`${options.mimeType} is not supported`);
@@ -213,10 +252,10 @@ const App: React.FC = () => {
     mediaRecorder.onstop = async (event) => {
       console.log("Recorder stopped: ", event);
       console.log("Recorded Blobs: ", recordedBlobs);
-      download();
+      await readChunksAndDownload();
     };
     mediaRecorder.ondataavailable = handleDataAvailable;
-    mediaRecorder.start();
+    mediaRecorder.start(1000);
     console.log("MediaRecorder started", mediaRecorder);
     setStart(true);
   }
@@ -225,31 +264,71 @@ const App: React.FC = () => {
     mediaRecorder.stop();
   }
 
-
-  function handleDataAvailable(event) {
+  async function handleDataAvailable(event: any) {
     console.log("handleDataAvailable", event);
     if (event.data && event.data.size > 0) {
-      recordedBlobs.push(event.data);
+      await db.put(storeName, event.data, chunkIndex++);
     }
   }
 
-  async function download() {
-    const blob = new Blob(recordedBlobs, { type: "video/webm" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.style.display = "none";
-    a.href = url;
-    a.download = "Recording-" + new Date().toISOString() + ".webm";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }, 100);
-    setStart(false);
-    videoPreview.pause();
-    videoPreview.src = null;
+  async function readChunksAndDownload() {
+    const indexedDBStream = new IndexedDBStream(db, storeName, chunkIndex);
+  
+    const readableStream = new ReadableStream({
+      async pull(controller) {
+        const chunk = await indexedDBStream.getNextChunk();
+        if (chunk) {
+          controller.enqueue(chunk);
+        } else {
+          controller.close();
+        }
+      },
+    });
+  
+    async function requestFileHandle() {
+      const fileName = "Recording-" + new Date().toISOString() + ".webm";
+      const options = {
+        types: [
+          {
+            description: "WebM files",
+            accept: {
+              "video/webm": [".webm"],
+            },
+          },
+        ],
+        excludeAcceptAllOption: true,
+        suggestedName: fileName,
+      };
+      return await window.showSaveFilePicker(options);
+    }
+
+    async function createWritableStream(fileHandle) {
+      return await fileHandle.createWritable();
+    }
+
+    const fileHandle = await requestFileHandle();
+    const writableStream = await createWritableStream(fileHandle);
+
+  
+    if (readableStream && writableStream) {
+      const reader = readableStream.getReader();
+      reader
+        .read()
+        .then(async function processChunk({ done, value }) {
+          if (done) {
+            writableStream.close();
+            setStart(false);
+            //videoPreview.pause();
+            //videoPreview.src = null;
+            return;
+          }
+  
+          await writableStream.write(value);
+          return reader.read().then(processChunk);
+        });
+    }
   }
+  
 
   return (
     <div className="App">
