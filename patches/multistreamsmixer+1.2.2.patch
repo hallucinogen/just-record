@@ -1,0 +1,21 @@
+diff --git a/node_modules/multistreamsmixer/MultiStreamsMixer.js b/node_modules/multistreamsmixer/MultiStreamsMixer.js
+index a5ad1da..cb9d369 100644
+--- a/node_modules/multistreamsmixer/MultiStreamsMixer.js
++++ b/node_modules/multistreamsmixer/MultiStreamsMixer.js
+@@ -327,10 +327,14 @@ function MultiStreamsMixer(arrayOfMediaStreams, elementClass) {
+             height = video.stream.height;
+         }
+ 
++        if (typeof video.stream.preRender === 'function') {
++            video.stream.preRender(context, x, y, width, height, idx);
++        }
++
+         context.drawImage(video, x, y, width, height);
+ 
+-        if (typeof video.stream.onRender === 'function') {
+-            video.stream.onRender(context, x, y, width, height, idx);
++        if (typeof video.stream.postRender === 'function') {
++            video.stream.postRender(context, x, y, width, height, idx);
+         }
+     }
+ 

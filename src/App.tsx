@@ -3,25 +3,27 @@ import "./App.css";
 import MultiStreamsMixer from "multistreamsmixer";
 import Control from "./Control";
 import NoPermission from "./NoPermission"
+import MediaDeviceSelector from "./MediaDeviceSelector";
 import { useDrag } from "react-use-gesture";
-import { openDB } from "idb";
+import { IDBPDatabase, openDB } from "idb";
 
+let db: IDBPDatabase<unknown>;
 const dbName = "videoChunksDB";
 const storeName = "videoChunks";
-let db;
-var videoPreview: HTMLVideoElement;
+
 let mixer: MultiStreamsMixer;
 let mediaRecorder: MediaRecorder;
-let recordedBlobs = [];
 let chunkIndex = 0;
 
+const CAMERA_SIZE = 0.2;
+
 class IndexedDBStream {
-  db: any;
+  db: IDBPDatabase;
   storeName: string;
   chunkCount: number;
   currentChunk: number;
 
-  constructor(db: any, storeName: string, chunkCount: number) {
+  constructor(db: IDBPDatabase, storeName: string, chunkCount: number) {
     this.db = db;
     this.storeName = storeName;
     this.chunkCount = chunkCount;
@@ -84,20 +86,64 @@ function addStreamStopListener(stream, callback) {
   });
 }
 
+function maskCameraStreamToCircle(stream) {
+  stream.preRender = function (context, x, y, width, height, idx, ignoreCB) {
+    context.save();
+    //context.translate(stream.left + stream.width, 0);
+    //context.scale(-1, 1);
+
+    context.beginPath();
+    context.arc(stream.left + stream.height * 0.75, stream.top + stream.height / 2, stream.height / 2, 0, 2 * Math.PI);
+    context.closePath();
+    context.clip();
+  }
+
+  stream.postRender = function (context, x, y, width, height, idx, ignoreCB) {
+    context.restore();
+  }
+}
+
 const App: React.FC = () => {
   const [permissionAllowed, setPermission] = useState(false);
   const [started, setStart] = useState(false);
   const cameraSelfieRef = React.useRef(null);
   const [cameraStreamState, setCameraStreamState] = useState(null);
+  const [screenStreamState, setScreenStreamState] = useState(null);
   const [xx, setX] = useState(0);
   const [yy, setY] = useState(0);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState("");
+  const [selectedVideoDevice, setSelectedVideoDevice] = useState("");
+
+  const handleDeviceSelect = async (audioDeviceId: string, videoDeviceId: string) => {
+    setSelectedAudioDevice(audioDeviceId);
+    setSelectedVideoDevice(videoDeviceId);
+
+    /*screenStreamState.getTracks().forEach(function (track) {
+      track.stop();
+    });*/
+
+    let camera = await startCameraAndScreen();
+    if (camera === null) {
+      setPermission(false);
+    } else {
+      setPermission(true);
+    }
+  };
 
   function updateCameraStreamPosition(x, y) {
     if (cameraStreamState) {
-      cameraStreamState.top = yy + y;
-      cameraStreamState.left = xx + x;
+      const videoPreview = document.getElementById("screen") as HTMLVideoElement;
+      const scaleWidth = videoPreview.clientWidth / videoPreview.videoWidth;
+      const scaleHeight = videoPreview.clientHeight / videoPreview.videoHeight;
+  
+      const offsetX = (videoPreview.offsetWidth - videoPreview.clientWidth) / 2;
+      const offsetY = (videoPreview.offsetHeight - videoPreview.clientHeight) / 2;
+  
+      cameraStreamState.top = yy + y / scaleHeight - offsetY / scaleHeight;
+      cameraStreamState.left = xx + x / scaleWidth - offsetX / scaleWidth;
     }
   }
+  
 
   const bind = useDrag(
     ({ offset: [x, y] }) => {
@@ -125,39 +171,39 @@ const App: React.FC = () => {
     cameraStream().then(async function (cameraStream) {
       screenStream.fullcanvas = true;
       setCameraStreamState(cameraStream);
+      setScreenStreamState(screenStream);
 
       const screenWidth = window.screen.width;
       const screenHeight = window.screen.height;
 
-      const cameraWidth = (20 / 100) * screenWidth;
-      const cameraHeight = (20 / 100) * screenHeight;
+      const cameraWidth = CAMERA_SIZE * screenWidth;
+      const cameraHeight = CAMERA_SIZE * screenHeight;
 
       cameraStream.width = cameraWidth;
       cameraStream.height = cameraHeight;
       cameraStream.top = screenHeight - cameraHeight - 20;
-      cameraStream.left = screenWidth - cameraWidth - 20;
+      cameraStream.left = screenWidth - cameraHeight - 20;
 
       setX(cameraStream.left);
       setY(cameraStream.top);
 
       screenStream.width = screenWidth;
       screenStream.height = screenHeight;
+      maskCameraStreamToCircle(cameraStream);
 
       mixer = new MultiStreamsMixer([screenStream, cameraStream]);
       mixer.frameInterval = 1;
       mixer.startDrawingFrames();
 
-      videoPreview = document.getElementById("screen") as HTMLVideoElement;
+      const videoPreview = document.getElementById("screen") as HTMLVideoElement;
       videoPreview.srcObject = mixer.getMixedStream();
-      //videoPreview.srcObject = screenStream;
+      // videoPreview.srcObject = screenStream;
       // const cameraPreview = document.getElementById("camera") as HTMLVideoElement;
       // cameraPreview.srcObject = cameraStream;
 
       // stop listener
       addStreamStopListener(screenStream, async function () {
         mixer.releaseStreams();
-        videoPreview.pause();
-        videoPreview.src = null;
         if (videoPreview === document.pictureInPictureElement) {
           await document.exitPictureInPicture();
         }
@@ -167,6 +213,7 @@ const App: React.FC = () => {
         screenStream.getTracks().forEach(function (track) {
           track.stop();
         });
+        setPermission(false);
       });
     });
   }
@@ -199,19 +246,16 @@ const App: React.FC = () => {
     let captureStream = null;
 
     try {
-      const screenWidth = window.screen.width;
-      const screenHeight = window.screen.height;
-
-      const cameraWidth = (20 / 100) * screenWidth;
-      const cameraHeight = (20 / 100) * screenHeight;
-
       captureStream = navigator.mediaDevices.getUserMedia({
         video: {
-          width: cameraWidth,
-          height: cameraHeight,
+          deviceId: selectedVideoDevice,
+          width: window.screen.width * CAMERA_SIZE,
+          height: window.screen.height * CAMERA_SIZE,
           frameRate: 15
         },
-        audio: true,
+        audio: {
+          deviceId: selectedAudioDevice
+        },
       });
     } catch (err) {
       console.error("Error: " + err);
@@ -220,7 +264,6 @@ const App: React.FC = () => {
   }
 
   function startRecording() {
-    recordedBlobs = [];
     chunkIndex = 0;
     let options = { mimeType: "video/webm;codecs=vp9,opus" };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
@@ -251,7 +294,6 @@ const App: React.FC = () => {
     );
     mediaRecorder.onstop = async (event) => {
       console.log("Recorder stopped: ", event);
-      console.log("Recorded Blobs: ", recordedBlobs);
       await readChunksAndDownload();
     };
     mediaRecorder.ondataavailable = handleDataAvailable;
@@ -273,7 +315,7 @@ const App: React.FC = () => {
 
   async function readChunksAndDownload() {
     const indexedDBStream = new IndexedDBStream(db, storeName, chunkIndex);
-  
+
     const readableStream = new ReadableStream({
       async pull(controller) {
         const chunk = await indexedDBStream.getNextChunk();
@@ -284,7 +326,7 @@ const App: React.FC = () => {
         }
       },
     });
-  
+
     async function requestFileHandle() {
       const fileName = "Recording-" + new Date().toISOString() + ".webm";
       const options = {
@@ -309,7 +351,7 @@ const App: React.FC = () => {
     const fileHandle = await requestFileHandle();
     const writableStream = await createWritableStream(fileHandle);
 
-  
+
     if (readableStream && writableStream) {
       const reader = readableStream.getReader();
       reader
@@ -318,44 +360,64 @@ const App: React.FC = () => {
           if (done) {
             writableStream.close();
             setStart(false);
-            //videoPreview.pause();
-            //videoPreview.src = null;
             return;
           }
-  
+
           await writableStream.write(value);
           return reader.read().then(processChunk);
         });
     }
   }
-  
+
 
   return (
     <div className="App">
       <div className="layout">
         <div
           style={{
-            display: "relative",
+            display: "contents",
             alignItems: "center",
             width: "100%"
           }}
         >
-          <video
-            id="screen"
-            style={{ height: permissionAllowed ? "100vh" : "80vh", backgroundColor: "#444" }}
-            autoPlay
-            muted
-            playsInline
-          >
-            Your browser does not support the video tag.
-          </video>
           <div
-            className="camera-selfie"
-            ref={cameraSelfieRef}
-            {...bind()}>
+            style={{
+              position: "relative",
+              height: permissionAllowed ? "100vh" : "80vh",
+              width: "fit-content",
+              alignSelf: "center"
+            }}
+          >
+            <video
+              id="screen"
+              style={{
+                height: "100%",
+                backgroundColor: "#444"
+              }}
+              autoPlay
+              muted
+              playsInline
+            >
+              Your browser does not support the video tag.
+            </video>
+            <div
+              className="camera-selfie"
+              ref={cameraSelfieRef}
+              {...bind()}
+            ></div>
           </div>
 
-          {!permissionAllowed ? <NoPermission /> : <Control started={started} onStart={startRecording} onStop={stopRecording} />}
+          <MediaDeviceSelector onDeviceSelect={handleDeviceSelect} />
+
+          {!permissionAllowed ? (
+            <NoPermission />
+          ) : (
+            <Control
+              started={started}
+              onStart={startRecording}
+              onStop={stopRecording}
+            />
+          )}
         </div>
       </div>
     </div>

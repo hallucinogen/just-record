@@ -35,31 +35,16 @@ video {
   pointer-events: none;
 }
 
-.play-pause-button {
-  border: 1px solid #111;
-  border-radius : 4px;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  background-color: #fff;
-  position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
-}
-
 .camera-selfie {
   position: absolute;
-  right: 20px;
-  bottom: 20px;
+  right: 10px;
+  bottom: 10px;
   z-index: 2;
-  height: 200px;
-  width: 200px;
+  height: 80px;
+  width: 80px;
   object-fit: cover;
   border-radius: 50%;
   background-color: #111;
+  opacity: 0;
+  cursor: pointer;
 }

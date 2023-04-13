@@ -8,9 +8,29 @@ interface ControlProps {
   onStart: () => void;
 }
 
+const styles: { [key: string]: React.CSSProperties } = {
+  playPauseButton: {
+    border: '1px solid #111',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '8px',
+    backgroundColor: '#fff',
+    position: 'absolute',
+    bottom: '32px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 2,
+  },
+};
+
+
 const Control: React.FC<ControlProps> = ({ started, onStop, onStart }) => (
   <button
-    className="play-pause-button"
+    style={styles.playPauseButton}
     onClick={() => (started ? onStop() : onStart())}
   >
     {started ? (
