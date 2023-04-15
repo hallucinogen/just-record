@@ -37,8 +37,8 @@ video {
 
 .camera-selfie {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
+  right: 20px;
+  bottom: 0px;
   z-index: 2;
   height: 80px;
   width: 80px;

@@ -16,27 +16,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'fixed',
     bottom: '32px',
     left: '32px',
-    zIndex: 2,
   },
   playPauseButton: {
     border: '1px solid #ccc',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    borderRadius: '50%',
+    borderRadius: '24px',
     cursor: 'pointer',
     fontSize: '16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '8px',
-    backgroundColor: '#fff',
-    height: '48px',
-    width: '48px',
-    marginRight: '16px',
+    backgroundColor: '#F2F2F5',
   },
   recordingTime: {
     color: '#111',
     fontSize: '16px',
-    fontWeight: 'bold',
+    marginLeft: '8px',
   },
 };
 
@@ -75,12 +71,13 @@ const Control: React.FC<ControlProps> = ({ started, onStop, onStart }) => {
         onClick={() => (started ? onStop() : onStart())}
       >
         {started ? (
-          <img src={stop} alt="stop" style={{ height: 32 }}></img>
+          <img src={stop} alt="stop" style={{ height: 30 }}></img>
         ) : (
-          <img src={play} alt="play" style={{ height: 32 }}></img>
+          <img src={play} alt="play" style={{ height: 30 }}></img>
         )}
+        <span style={styles.recordingTime}>{formatTime(recordingTime)}</span>
       </button>
-      <span style={styles.recordingTime}>{formatTime(recordingTime)}</span>
+      
     </div>
   );
 };

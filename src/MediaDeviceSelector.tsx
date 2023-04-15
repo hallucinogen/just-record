@@ -1,5 +1,6 @@
 import React from 'react';
 import SizeSelector from './SizeSelector';
+import UpgradeModal from './UpgradeModal';
 
 interface Props {
   onDeviceSelect: (audioDeviceId: string, videoDeviceId: string, size: string) => void;
@@ -10,9 +11,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'fixed',
     top: '20px',
     right: '20px',
-    zIndex: 1000,
     backgroundColor: '#ffffff',
-    borderRadius: '8px',
+    borderRadius: '24px',
     padding: '12px',
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
     display: 'flex',
@@ -20,14 +20,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '16px',
     width: '280px'
   },
-  label: {
+  appName: {
     fontWeight: 600,
     color: '#1c1c1e',
-    marginBottom: '4px',
+    marginBottom: '8px',
+    fontSize: '24px',
+    position: 'relative'
   },
   select: {
-    backgroundColor: '#f5f5f7',
-    borderRadius: '6px',
+    backgroundColor: '#F2F2F5',
+    borderRadius: '24px',
     padding: '12px',
     color: '#1c1c1e',
     fontWeight: 400,
@@ -38,6 +40,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     fontSize: '16px',
+    appearance: 'none',
+  },
+  upgradeButton: {
+    position: 'absolute',
+    top: '0px',
+    right: '0px',
+    padding: '0px',
+    backgroundColor: '#ffffff',
+    borderRadius: '6px',
+    color: '#1c1c1e',
+    fontWeight: 400,
+    border: 'none',
+    outline: 'none',
+    cursor: 'pointer',
+    fontSize: '24px',
   },
 };
 
@@ -45,6 +62,11 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
   const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [size, setSize] = React.useState('Small Selfie Camera');
+  const [isUpgradeModalVisible, setIsUpgradeModalVisible] = React.useState(false);
+
+  const toggleUpgradeModal = () => {
+    setIsUpgradeModalVisible(!isUpgradeModalVisible);
+  };
 
   React.useEffect(() => {
     async function fetchDevices() {
@@ -77,9 +99,12 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
 
   return (
     <div style={styles.container}>
+      <div style={styles.appName}>
+        Just Record
+        <button style={styles.upgradeButton} onClick={toggleUpgradeModal}>🌟</button>
+      </div>
+        
       <select
-        id="audio-device-selector"
-        value={audioDevices.length > 0 ? audioDevices[0].deviceId : ''}
         onChange={handleAudioDeviceChange}
         style={styles.select}
       >
@@ -90,8 +115,6 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
         ))}
       </select>
       <select
-        id="video-device-selector"
-        value={videoDevices.length > 0 ? videoDevices[0].deviceId : ''}
         onChange={handleVideoDeviceChange}
         style={styles.select}
       >
@@ -103,6 +126,8 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
       </select>
 
       <SizeSelector selectedSize={size} onSizeSelect={handleSizeSelect} style={{ marginTop: '16px' }} />
+
+      <UpgradeModal isVisible={isUpgradeModalVisible} onClose={toggleUpgradeModal} />
     </div>
   );
 };

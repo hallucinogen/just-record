@@ -12,8 +12,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '8px',
   },
   button: {
-    backgroundColor: '#f5f5f7',
-    borderRadius: '6px',
+    backgroundColor: '#F2F2F5',
+    borderRadius: '24px',
     color: '#1c1c1e',
     fontWeight: 800,
     border: 'none',
@@ -21,7 +21,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     flexGrow: 1,
     textAlign: 'center',
-    fontSize: '32px',
+    fontSize: '20px',
     padding: '6px'
   },
   selectedButton: {
