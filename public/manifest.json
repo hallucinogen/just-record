@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Just Record",
     "description": "Simplest way to record from your camera and screen.",
-    "version": "0.0.3",
+    "version": "0.1.0",
     "action": {},
     "background": {
       "service_worker": "background.js"
