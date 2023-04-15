@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Just Record",
     "description": "Simplest way to record from your camera and screen.",
-    "version": "0.0.1",
+    "version": "0.0.3",
     "action": {},
     "background": {
       "service_worker": "background.js"
@@ -10,5 +10,6 @@
     "icons": {
       "16": "favicon-16x16.png",
       "128": "favicon-16x16.png"
-    }
+    },
+    "offline_enabled": true
   }

@@ -235,7 +235,10 @@ const App: React.FC = () => {
   async function screenStream() {
     if (navigator.mediaDevices.getDisplayMedia) {
       return navigator.mediaDevices
-        .getDisplayMedia({ video: true });
+        .getDisplayMedia({ video: {
+          displaySurface: 'monitor',
+        } 
+      });
     }
 
     alert("getDisplayMedia API is not supported by this browser.");
@@ -341,7 +344,7 @@ const App: React.FC = () => {
         excludeAcceptAllOption: true,
         suggestedName: fileName,
       };
-      return await window.showSaveFilePicker(options);
+      return await window.showSaveFilePicker && window.showSaveFilePicker(options);
     }
 
     async function createWritableStream(fileHandle) {
