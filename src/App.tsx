@@ -14,8 +14,10 @@ const storeName = "videoChunks";
 let mixer: MultiStreamsMixer;
 let mediaRecorder: MediaRecorder;
 let chunkIndex = 0;
+let cameraStreamState: MediaStream;
+let screenStreamState: MediaStream;
 
-const CAMERA_SIZE = 0.2;
+let cameraSize = 0.2;
 
 class IndexedDBStream {
   db: IDBPDatabase;
@@ -107,26 +109,29 @@ const App: React.FC = () => {
   const [permissionAllowed, setPermission] = useState(false);
   const [started, setStart] = useState(false);
   const cameraSelfieRef = React.useRef(null);
-  const [cameraStreamState, setCameraStreamState] = useState(null);
-  const [screenStreamState, setScreenStreamState] = useState(null);
   const [xx, setX] = useState(0);
   const [yy, setY] = useState(0);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState("");
   const [selectedVideoDevice, setSelectedVideoDevice] = useState("");
 
-  const handleDeviceSelect = async (audioDeviceId: string, videoDeviceId: string) => {
+  const handleDeviceSelect = async (audioDeviceId: string, videoDeviceId: string, selectedSize: string) => {
     setSelectedAudioDevice(audioDeviceId);
     setSelectedVideoDevice(videoDeviceId);
 
-    /*screenStreamState.getTracks().forEach(function (track) {
-      track.stop();
-    });*/
+    if (selectedSize === 'Small Selfie Camera') {
+      cameraSize = 0.2;
+    } else if (selectedSize === 'Huge Selfie Camera') {
+      cameraSize = 0.5;
+    } else if (selectedSize === 'No Selfie Camera') {
+      cameraSize = 0;
+    }
 
-    let camera = await startCameraAndScreen();
+    let camera = await cameraStream();
     if (camera === null) {
       setPermission(false);
     } else {
       setPermission(true);
+      updateScreenRendering();
     }
   };
 
@@ -156,7 +161,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let handlePermission = async () => {
-      let camera = await startCameraAndScreen();
+      let camera = await cameraStream();
       if (camera === null) {
         setPermission(false);
       } else {
@@ -167,93 +172,92 @@ const App: React.FC = () => {
     initDb();
   }, []);
 
-  function afterScreenCaptured(screenStream) {
-    cameraStream().then(async function (cameraStream) {
-      screenStream.fullcanvas = true;
-      setCameraStreamState(cameraStream);
-      setScreenStreamState(screenStream);
+  function updateScreenRendering() {
+    const screenWidth = window.screen.width;
+    const screenHeight = window.screen.height;
 
-      const screenWidth = window.screen.width;
-      const screenHeight = window.screen.height;
+    const cameraWidth = cameraSize * screenWidth;
+    const cameraHeight = cameraSize * screenHeight;
 
-      const cameraWidth = CAMERA_SIZE * screenWidth;
-      const cameraHeight = CAMERA_SIZE * screenHeight;
+    cameraStreamState.width = cameraWidth;
+    cameraStreamState.height = cameraHeight;
+    cameraStreamState.top = screenHeight - cameraHeight - 20;
+    cameraStreamState.left = screenWidth - cameraHeight - 20;
 
-      cameraStream.width = cameraWidth;
-      cameraStream.height = cameraHeight;
-      cameraStream.top = screenHeight - cameraHeight - 20;
-      cameraStream.left = screenWidth - cameraHeight - 20;
+    setX(cameraStreamState.left);
+    setY(cameraStreamState.top);
 
-      setX(cameraStream.left);
-      setY(cameraStream.top);
+    maskCameraStreamToCircle(cameraStreamState);
 
-      screenStream.width = screenWidth;
-      screenStream.height = screenHeight;
-      maskCameraStreamToCircle(cameraStream);
+    if (screenStreamState != null) {
+      screenStreamState.fullcanvas = true;
+      screenStreamState.width = screenWidth;
+      screenStreamState.height = screenHeight;
+      mixer = new MultiStreamsMixer([screenStreamState, cameraStreamState]);
 
-      mixer = new MultiStreamsMixer([screenStream, cameraStream]);
-      mixer.frameInterval = 1;
-      mixer.startDrawingFrames();
-
-      const videoPreview = document.getElementById("screen") as HTMLVideoElement;
-      videoPreview.srcObject = mixer.getMixedStream();
-      // videoPreview.srcObject = screenStream;
-      // const cameraPreview = document.getElementById("camera") as HTMLVideoElement;
-      // cameraPreview.srcObject = cameraStream;
-
-      // stop listener
-      addStreamStopListener(screenStream, async function () {
+      addStreamStopListener(screenStreamState, async function () {
         mixer.releaseStreams();
         if (videoPreview === document.pictureInPictureElement) {
           await document.exitPictureInPicture();
         }
-        cameraStream.getTracks().forEach(function (track) {
+        cameraStreamState.getTracks().forEach(function (track) {
           track.stop();
         });
-        screenStream.getTracks().forEach(function (track) {
+        screenStreamState.getTracks().forEach(function (track) {
           track.stop();
         });
         setPermission(false);
       });
-    });
-  }
+    } else {
+      const canvas = document.createElement('canvas');
+      canvas.width = screenWidth;
+      canvas.height = screenHeight;
 
-  async function startCameraAndScreen() {
-    let captureStream = null;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    try {
-      captureStream = await screenStream().then((screenStream) => {
-        afterScreenCaptured(screenStream);
-      });
-    } catch (err) {
-      console.error("Error: " + err);
+      const emptyScreenStream = canvas.captureStream();
+      emptyScreenStream.fullcanvas = true;
+      emptyScreenStream.width = screenWidth;
+      emptyScreenStream.height = screenHeight;
+      mixer = new MultiStreamsMixer([emptyScreenStream, cameraStreamState]);
     }
+    
+    mixer.frameInterval = 1;
+    mixer.startDrawingFrames();
 
-    return captureStream;
+    const videoPreview = document.getElementById("screen") as HTMLVideoElement;
+    videoPreview.srcObject = mixer.getMixedStream();
   }
 
   async function screenStream() {
-    if (navigator.mediaDevices.getDisplayMedia) {
-      return navigator.mediaDevices
-        .getDisplayMedia({ video: {
-          displaySurface: 'monitor',
-        } 
-      });
+    let captureStream = null;
+    try {
+      if (navigator.mediaDevices.getDisplayMedia) {
+        captureStream = await navigator.mediaDevices
+          .getDisplayMedia({ video: {
+            displaySurface: 'monitor',
+          } 
+        });
+      }
+    } catch (err) {
+      alert("getDisplayMedia API is not supported by this browser.");
     }
 
-    alert("getDisplayMedia API is not supported by this browser.");
-    return null;
+    screenStreamState = captureStream;
+    return captureStream;
   }
 
   async function cameraStream() {
     let captureStream = null;
 
     try {
-      captureStream = navigator.mediaDevices.getUserMedia({
+      captureStream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: selectedVideoDevice,
-          width: window.screen.width * CAMERA_SIZE,
-          height: window.screen.height * CAMERA_SIZE,
+          width: window.screen.width * cameraSize,
+          height: window.screen.height * cameraSize,
           frameRate: 15
         },
         audio: {
@@ -263,10 +267,16 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Error: " + err);
     }
+
+    cameraStreamState = captureStream;
+    updateScreenRendering();
     return captureStream;
   }
 
-  function startRecording() {
+  async function startRecording() {
+    const stream = await screenStream();
+    updateScreenRendering();
+
     chunkIndex = 0;
     let options = { mimeType: "video/webm;codecs=vp9,opus" };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
@@ -289,14 +299,7 @@ const App: React.FC = () => {
       return;
     }
 
-    console.log(
-      "Created MediaRecorder",
-      mediaRecorder,
-      "with options",
-      options
-    );
     mediaRecorder.onstop = async (event) => {
-      console.log("Recorder stopped: ", event);
       await readChunksAndDownload();
     };
     mediaRecorder.ondataavailable = handleDataAvailable;
