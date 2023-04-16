@@ -112,21 +112,36 @@ async function validateLicense(licenseKey: string) {
 const UpgradeModal: React.FC<Props> = ({ isVisible, onClose, onUpgrade }) => {
   const [licenseKey, setLicenseKey] = React.useState('');
   const [showForm, setShowForm] = React.useState(false);
+  const [isPremium, setIsPremium] = React.useState(false);
+
+  React.useEffect(() => {
+    const storedLicenseKey = localStorage.getItem('licenseKey');
+    if (storedLicenseKey) {
+      (async () => {
+        const isValid = await validateLicense(storedLicenseKey);
+        if (isValid) {
+          setLicenseKey(storedLicenseKey);
+          setIsPremium(true);
+          onUpgrade();
+        }
+      })();
+    }
+  }, [onUpgrade]);  
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const isValid = await validateLicense(licenseKey);
-    
+  
     if (isValid) {
       onUpgrade();
-
-      // TODO: make good UI that we've upgraded
+      localStorage.setItem('licenseKey', licenseKey);
+      setIsPremium(true);
       onClose();
       console.log("License is valid");
     } else {
       console.log("License is invalid");
     }
-  };
+  };  
 
   return (
     <Modal
@@ -137,31 +152,61 @@ const UpgradeModal: React.FC<Props> = ({ isVisible, onClose, onUpgrade }) => {
         content: styles.modalContent,
       }}
     >
-      <h2>Upgrade to unlock full features</h2>
-      <p>Get unlimited recording duration and more features by upgrading to the premium version.</p>
-      <a style={styles.link} onClick={(e) => setShowForm(true)}>I already bought a license</a>
-      {showForm ? (
-        <form style={styles.form} onSubmit={handleSubmit}>
-          <input
-            style={styles.input}
-            type="text"
-            placeholder="Enter License Key"
-            value={licenseKey}
-            onChange={(e) => setLicenseKey(e.target.value)}
-          />
-          <button style={styles.submitButton} type="submit">Submit</button>
-        </form>
-      ): null}
-
-      <a href="https://hallucinogenstudio.lemonsqueezy.com/checkout/buy/272abda2-bea0-4460-a770-40a67fc0ec5e" target="_blank" rel="noopener noreferrer" style={styles.buyNowButton}>
-        Buy Now
-      </a>
-
-      <button style={styles.closeButton} onClick={onClose}>
-        ✖️
-      </button>
+      {isPremium ? (
+        <>
+          <h2>Welcome to Just Record Premium!</h2>
+          <p>Thank you for upgrading to the premium version. Your license key:</p>
+          <p>
+            <strong>{licenseKey}</strong>
+          </p>
+          <p>
+            Enjoy unlimited recording duration and all the exclusive features!
+          </p>
+          <button style={styles.closeButton} onClick={onClose}>
+            ✖️
+          </button>
+        </>
+      ) : (
+        <>
+          <h2>Upgrade to unlock full features</h2>
+          <p>
+            Get unlimited recording duration and more features by upgrading to
+            the premium version.
+          </p>
+          <a style={styles.link} onClick={(e) => setShowForm(true)}>
+            I already bought a license
+          </a>
+          {showForm ? (
+            <form style={styles.form} onSubmit={handleSubmit}>
+              <input
+                style={styles.input}
+                type="text"
+                placeholder="Enter License Key"
+                value={licenseKey}
+                onChange={(e) => setLicenseKey(e.target.value)}
+              />
+              <button style={styles.submitButton} type="submit">
+                Submit
+              </button>
+            </form>
+          ) : null}
+  
+          <a
+            href="https://hallucinogenstudio.lemonsqueezy.com/checkout/buy/272abda2-bea0-4460-a770-40a67fc0ec5e"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.buyNowButton}
+          >
+            Buy Now
+          </a>
+  
+          <button style={styles.closeButton} onClick={onClose}>
+            ✖️
+          </button>
+        </>
+      )}
     </Modal>
-  );
+  );  
 };
 
 export default UpgradeModal;
