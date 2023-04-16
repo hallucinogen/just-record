@@ -118,7 +118,7 @@ const UpgradeModal: React.FC<Props> = ({ isVisible, onClose, onUpgrade }) => {
         </form>
       ): null}
 
-      <a href="https://lemonsqueezy.com" target="_blank" rel="noopener noreferrer" style={styles.buyNowButton}>
+      <a href="https://hallucinogenstudio.lemonsqueezy.com/checkout/buy/272abda2-bea0-4460-a770-40a67fc0ec5e" target="_blank" rel="noopener noreferrer" style={styles.buyNowButton}>
         Buy Now
       </a>
 
