@@ -4,6 +4,7 @@ import Modal from 'react-modal';
 interface Props {
   isVisible: boolean;
   onClose: () => void;
+  onUpgrade: () => void;
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
@@ -79,13 +80,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
-const UpgradeModal: React.FC<Props> = ({ isVisible, onClose }) => {
+const UpgradeModal: React.FC<Props> = ({ isVisible, onClose, onUpgrade }) => {
   const [licenseKey, setLicenseKey] = React.useState('');
   const [showForm, setShowForm] = React.useState(false);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // TODO: check licensekey with lemonsqueezy
     //onSubmit(licenseKey);
+    onUpgrade();
+    // TODO: make good UI that we've upgraded
+    onClose();
   };
 
   return (

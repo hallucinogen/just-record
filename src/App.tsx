@@ -113,6 +113,7 @@ const App: React.FC = () => {
   const cameraSelfieRef = React.useRef(null);
   const [xx, setX] = useState(0);
   const [yy, setY] = useState(0);
+  // this is absolutely bad pattern. Should've used context instead
   const [licenseKeyValid, setLicenseKeyValid] = useState(false);
 
   const handleDeviceSelect = async (audioDeviceId: string, videoDeviceId: string, selectedSize: string) => {
@@ -275,8 +276,10 @@ const App: React.FC = () => {
   }
 
   async function startRecording() {
-    const stream = await screenStream();
-    updateScreenRendering();
+    if (screenStreamState == null) {
+      await screenStream();
+      updateScreenRendering();
+    }
 
     chunkIndex = 0;
     let options = { mimeType: "video/webm;codecs=vp9,opus" };
@@ -461,7 +464,7 @@ const App: React.FC = () => {
             ></div>
           </div>
 
-          <MediaDeviceSelector onDeviceSelect={handleDeviceSelect} />
+          <MediaDeviceSelector onDeviceSelect={handleDeviceSelect} onUpgrade={() => setLicenseKeyValid(true)} />
 
           {!permissionAllowed ? (
             <NoPermission />

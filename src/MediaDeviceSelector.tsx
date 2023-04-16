@@ -4,6 +4,7 @@ import UpgradeModal from './UpgradeModal';
 
 interface Props {
   onDeviceSelect: (audioDeviceId: string, videoDeviceId: string, size: string) => void;
+  onUpgrade: () => void;
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
@@ -58,11 +59,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
-const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
+const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect, onUpgrade }) => {
   const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [size, setSize] = React.useState('Small Selfie Camera');
   const [isUpgradeModalVisible, setIsUpgradeModalVisible] = React.useState(false);
+  const [isUpgraded, setUpgraded] = React.useState(false);
 
   const toggleUpgradeModal = () => {
     setIsUpgradeModalVisible(!isUpgradeModalVisible);
@@ -97,11 +99,17 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
     onDeviceSelect(audioDeviceId, videoDeviceId, selectedSize);
   };
 
+  // this is absolutely bad pattern. Should've used context instead
+  const onUpgradeIntercept = () => {
+    onUpgrade();
+    setUpgraded(true);
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.appName}>
         Just Record
-        <button style={styles.upgradeButton} onClick={toggleUpgradeModal}>🌟</button>
+        <button style={styles.upgradeButton} onClick={toggleUpgradeModal}>{isUpgraded ? '🏆' : '🌟' }</button>
       </div>
         
       <select
@@ -127,7 +135,7 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect }) => {
 
       <SizeSelector selectedSize={size} onSizeSelect={handleSizeSelect} style={{ marginTop: '16px' }} />
 
-      <UpgradeModal isVisible={isUpgradeModalVisible} onClose={toggleUpgradeModal} />
+      <UpgradeModal isVisible={isUpgradeModalVisible} onClose={toggleUpgradeModal} onUpgrade={onUpgradeIntercept} />
     </div>
   );
 };
