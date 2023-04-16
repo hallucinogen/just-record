@@ -80,17 +80,52 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
+async function validateLicense(licenseKey: string) {
+  const url = 'https://api.lemonsqueezy.com/v1/licenses/validate';
+  const headers = new Headers({
+    'Accept': 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded'
+  });
+
+  const data = new URLSearchParams({
+    license_key: licenseKey,
+  });
+
+  const requestOptions: RequestInit = {
+    method: 'POST',
+    headers: headers,
+    body: data.toString()
+  };
+
+  try {
+    const response = await fetch(url, requestOptions);
+    const result = await response.json();
+
+    return result.valid == true;
+  } catch (error) {
+    console.error('Error:', error);
+  }
+
+  return false;
+}
+
 const UpgradeModal: React.FC<Props> = ({ isVisible, onClose, onUpgrade }) => {
   const [licenseKey, setLicenseKey] = React.useState('');
   const [showForm, setShowForm] = React.useState(false);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: check licensekey with lemonsqueezy
-    //onSubmit(licenseKey);
-    onUpgrade();
-    // TODO: make good UI that we've upgraded
-    onClose();
+    const isValid = await validateLicense(licenseKey);
+    
+    if (isValid) {
+      onUpgrade();
+
+      // TODO: make good UI that we've upgraded
+      onClose();
+      console.log("License is valid");
+    } else {
+      console.log("License is invalid");
+    }
   };
 
   return (
