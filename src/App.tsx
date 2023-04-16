@@ -7,6 +7,8 @@ import MediaDeviceSelector from "./MediaDeviceSelector";
 import { useDrag } from "react-use-gesture";
 import { IDBPDatabase, openDB } from "idb";
 
+// TODO: All of these garbages need to move out of from this place and make the
+// code less stateful
 let db: IDBPDatabase<unknown>;
 const dbName = "videoChunksDB";
 const storeName = "videoChunks";
