@@ -37,11 +37,11 @@ video {
 
 .camera-selfie {
   position: absolute;
-  right: 20px;
-  bottom: 0px;
+  right: 25px;
+  bottom: 5px;
   z-index: 2;
-  height: 80px;
-  width: 80px;
+  height: 25vh;
+  width: 25vh;
   object-fit: cover;
   border-radius: 50%;
   background-color: #111;
