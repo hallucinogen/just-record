@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import play from './play.svg';
 import stop from './stop.svg';
+import Draggable from 'react-draggable';
 
 interface ControlProps {
   started: boolean;
@@ -65,20 +66,22 @@ const Control: React.FC<ControlProps> = ({ started, onStop, onStart }) => {
   };
 
   return (
-    <div style={styles.controlContainer}>
-      <button
-        style={styles.playPauseButton}
-        onClick={() => (started ? onStop() : onStart())}
-      >
-        {started ? (
-          <img src={stop} alt="stop" style={{ height: 30 }}></img>
-        ) : (
-          <img src={play} alt="play" style={{ height: 30 }}></img>
-        )}
-        <span style={styles.recordingTime}>{formatTime(recordingTime)}</span>
-      </button>
-      
-    </div>
+    <Draggable>
+      <div style={styles.controlContainer}>
+        <button
+          style={styles.playPauseButton}
+          onClick={() => (started ? onStop() : onStart())}
+        >
+          {started ? (
+            <img src={stop} alt="stop" style={{ height: 30 }}></img>
+          ) : (
+            <img src={play} alt="play" style={{ height: 30 }}></img>
+          )}
+          <span style={styles.recordingTime}>{formatTime(recordingTime)}</span>
+        </button>
+
+      </div>
+    </Draggable>
   );
 };
 

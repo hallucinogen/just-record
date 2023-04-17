@@ -28,23 +28,29 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#1c1c1e',
     color: '#ffffff',
   },
+  label: {
+    fontSize: '16px',
+    marginBottom: '8px',
+  },
 };
 
 const SizeSelector: React.FC<Props> = ({ selectedSize, onSizeSelect, style }) => {
   const sizes = [
-    { name: 'No Selfie Camera', emoji: '✖️' },
-    { name: 'Small Selfie Camera', emoji: '◯' },
-    { name: 'Huge Selfie Camera', emoji: '⬤' },
+    { name: 'No Selfie Camera', emoji: '✖️', fontSize: '20px' },
+    { name: 'Small Selfie Camera', emoji: '◯', fontSize: '12px' },
+    { name: 'Huge Selfie Camera', emoji: '◯', fontSize: '24px' },
   ];
 
   return (
     <div style={{ ...styles.container, ...style }}>
+      <p style={styles.label}>Selfie Size</p>
       {sizes.map((size) => (
         <button
           key={size.name}
           style={{
             ...styles.button,
             ...(selectedSize === size.name ? styles.selectedButton : {}),
+            ...{ fontSize: size.fontSize }
           }}
           onClick={() => onSizeSelect(size.name)}
           disabled={selectedSize === size.name}
