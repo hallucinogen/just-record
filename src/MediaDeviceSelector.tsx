@@ -5,6 +5,7 @@ import UpgradeModal from './UpgradeModal';
 interface Props {
   onDeviceSelect: (audioDeviceId: string, videoDeviceId: string, size: string) => void;
   onUpgrade: () => void;
+  hasDevicePermission: boolean;
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
@@ -59,7 +60,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
-const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect, onUpgrade }) => {
+const MediaDeviceSelector: React.FC<Props> = ({ hasDevicePermission, onDeviceSelect, onUpgrade }) => {
   const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [size, setSize] = React.useState('Small Selfie Camera');
@@ -77,8 +78,10 @@ const MediaDeviceSelector: React.FC<Props> = ({ onDeviceSelect, onUpgrade }) => 
       setVideoDevices(devices.filter((device) => device.kind === 'videoinput'));
     }
 
-    fetchDevices();
-  }, []);
+    if (hasDevicePermission) {
+      fetchDevices();
+    }
+  }, [hasDevicePermission]);
 
   const handleAudioDeviceChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const audioDeviceId = event.target.value;

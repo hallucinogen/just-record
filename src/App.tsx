@@ -466,7 +466,7 @@ const App: React.FC = () => {
             ></div>
           </div>
 
-          <MediaDeviceSelector onDeviceSelect={handleDeviceSelect} onUpgrade={() => setLicenseKeyValid(true)} />
+          <MediaDeviceSelector hasDevicePermission={permissionAllowed} onDeviceSelect={handleDeviceSelect} onUpgrade={() => setLicenseKeyValid(true)} />
 
           {!permissionAllowed ? (
             <NoPermission />
