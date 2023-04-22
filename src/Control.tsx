@@ -25,7 +25,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '24px',
     cursor: 'pointer',
     fontSize: '16px',
-    fontWeight: 'bold',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
