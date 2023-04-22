@@ -1,6 +1,7 @@
 import React from 'react';
 import SizeSelector from './SizeSelector';
 import UpgradeModal from './UpgradeModal';
+import { SelfieSize } from './types/SelfieSize';
 
 interface Props {
   onDeviceSelect: (audioDeviceId: string, videoDeviceId: string, size: string) => void;
@@ -63,7 +64,7 @@ const styles: { [key: string]: React.CSSProperties } = {
 const MediaDeviceSelector: React.FC<Props> = ({ hasDevicePermission, onDeviceSelect, onUpgrade }) => {
   const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
-  const [size, setSize] = React.useState('Small Selfie Camera');
+  const [size, setSize] = React.useState(SelfieSize.SmallCircle);
   const [isUpgradeModalVisible, setIsUpgradeModalVisible] = React.useState(false);
   const [isUpgraded, setUpgraded] = React.useState(false);
 
@@ -95,7 +96,7 @@ const MediaDeviceSelector: React.FC<Props> = ({ hasDevicePermission, onDeviceSel
     onDeviceSelect(audioDeviceId, videoDeviceId, size);
   };
 
-  const handleSizeSelect = (selectedSize: string) => {
+  const handleSizeSelect = (selectedSize: SelfieSize) => {
     setSize(selectedSize);
     const audioDeviceId = audioDevices.length > 0 ? audioDevices[0].deviceId : '';
     const videoDeviceId = videoDevices.length > 0 ? videoDevices[0].deviceId : '';
@@ -112,9 +113,9 @@ const MediaDeviceSelector: React.FC<Props> = ({ hasDevicePermission, onDeviceSel
     <div style={styles.container}>
       <div style={styles.appName}>
         Just Record
-        <button style={styles.upgradeButton} onClick={toggleUpgradeModal}>{isUpgraded ? '🏆' : '🌟' }</button>
+        <button style={styles.upgradeButton} onClick={toggleUpgradeModal}>{isUpgraded ? '🏆' : '🌟'}</button>
       </div>
-        
+
       <select
         onChange={handleAudioDeviceChange}
         style={styles.select}

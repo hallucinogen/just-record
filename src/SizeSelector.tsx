@@ -1,8 +1,9 @@
 import React from 'react';
+import { SelfieSize } from './types/SelfieSize';
 
 interface Props {
   selectedSize: string;
-  onSizeSelect: (size: string) => void;
+  onSizeSelect: (size: SelfieSize) => void;
   style?: React.CSSProperties;
 }
 
@@ -36,9 +37,9 @@ const styles: { [key: string]: React.CSSProperties } = {
 
 const SizeSelector: React.FC<Props> = ({ selectedSize, onSizeSelect, style }) => {
   const sizes = [
-    { name: 'No Selfie Camera', emoji: '✖️', fontSize: '20px' },
-    { name: 'Small Selfie Camera', emoji: '◯', fontSize: '12px' },
-    { name: 'Huge Selfie Camera', emoji: '◯', fontSize: '24px' },
+    { name: SelfieSize.None, emoji: '✖️', fontSize: '20px' },
+    { name: SelfieSize.SmallCircle, emoji: '◯', fontSize: '12px' },
+    { name: SelfieSize.Rectangle, emoji: '◯', fontSize: '24px' },
   ];
 
   return (

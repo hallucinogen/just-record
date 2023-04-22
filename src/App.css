@@ -37,14 +37,25 @@ video {
 
 .camera-selfie {
   position: absolute;
-  right: 25px;
-  bottom: 5px;
-  z-index: 2;
-  height: 25vh;
-  width: 25vh;
   object-fit: cover;
-  border-radius: 50%;
   background-color: #111;
   opacity: 0;
   cursor: pointer;
+  z-index: 2;
+}
+
+.camera-selfie.small-circle {
+  right: 25px;
+  bottom: 5px;
+  height: 25vh;
+  width: 25vh;
+  border-radius: 50%;
+}
+
+.camera-selfie.rectangle {
+  right: 10px;
+  top: 25%;
+  height: 50vh;
+  width: 40vh;
+  border-radius: 10px;
 }

@@ -6,6 +6,7 @@ import NoPermission from "./NoPermission"
 import MediaDeviceSelector from "./MediaDeviceSelector";
 import { useDrag } from "react-use-gesture";
 import { IDBPDatabase, openDB } from "idb";
+import { SelfieSize } from './types/SelfieSize';
 
 // TODO: All of these garbages need to move out of from this place and make the
 // code less stateful
@@ -21,7 +22,7 @@ let screenStreamState: MediaStream;
 let selectedAudioDevice: string = null;
 let selectedVideoDevice: string = null;
 
-let cameraSize = 0.2;
+let selfieSize: SelfieSize = SelfieSize.SmallCircle;
 
 class IndexedDBStream {
   db: IDBPDatabase;
@@ -109,6 +110,39 @@ function maskCameraStreamToCircle(stream) {
   }
 }
 
+function maskCameraStreamToPortrait(stream) {
+  const borderRadius = 50; // Adjust the border radius as needed
+
+  function drawRoundedRect(context, x, y, width, height, radius) {
+    context.beginPath();
+    context.moveTo(x + radius, y);
+    context.lineTo(x + width - radius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + radius);
+    context.lineTo(x + width, y + height - radius);
+    context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    context.lineTo(x + radius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - radius);
+    context.lineTo(x, y + radius);
+    context.quadraticCurveTo(x, y, x + radius, y);
+    context.closePath();
+  }
+
+  stream.preRender = function (context, x, y, width, height, idx, ignoreCB) {
+    context.save();
+
+    const portraitWidth = stream.height * 0.75; // Adjust the width-to-height ratio as needed
+    const portraitX = stream.left + (stream.width - portraitWidth) / 2;
+
+    drawRoundedRect(context, portraitX, stream.top, portraitWidth, stream.height, borderRadius);
+    context.clip();
+  }
+
+  stream.postRender = function (context, x, y, width, height, idx, ignoreCB) {
+    context.restore();
+  }
+}
+
+
 const App: React.FC = () => {
   const [permissionAllowed, setPermission] = useState(false);
   const [started, setStart] = useState(false);
@@ -118,17 +152,11 @@ const App: React.FC = () => {
   // this is absolutely bad pattern. Should've used context instead
   const [licenseKeyValid, setLicenseKeyValid] = useState(false);
 
-  const handleDeviceSelect = async (audioDeviceId: string, videoDeviceId: string, selectedSize: string) => {
+  const handleDeviceSelect = async (audioDeviceId: string, videoDeviceId: string, selectedSize: SelfieSize) => {
     selectedAudioDevice = audioDeviceId;
     selectedVideoDevice = videoDeviceId;
 
-    if (selectedSize === 'Small Selfie Camera') {
-      cameraSize = 0.2;
-    } else if (selectedSize === 'Huge Selfie Camera') {
-      cameraSize = 0.5;
-    } else if (selectedSize === 'No Selfie Camera') {
-      cameraSize = 0;
-    }
+    selfieSize = selectedSize;
 
     let camera = await cameraStream();
     if (camera === null) {
@@ -144,15 +172,15 @@ const App: React.FC = () => {
       const videoPreview = document.getElementById("screen") as HTMLVideoElement;
       const scaleWidth = videoPreview.clientWidth / videoPreview.videoWidth;
       const scaleHeight = videoPreview.clientHeight / videoPreview.videoHeight;
-  
+
       const offsetX = (videoPreview.offsetWidth - videoPreview.clientWidth) / 2;
       const offsetY = (videoPreview.offsetHeight - videoPreview.clientHeight) / 2;
-  
+
       cameraStreamState.top = yy + y / scaleHeight - offsetY / scaleHeight;
       cameraStreamState.left = xx + x / scaleWidth - offsetX / scaleWidth;
     }
   }
-  
+
 
   const bind = useDrag(
     ({ offset: [x, y] }) => {
@@ -180,19 +208,52 @@ const App: React.FC = () => {
     const screenWidth = window.screen.width;
     const screenHeight = window.screen.height;
 
-    const cameraWidth = cameraSize * screenWidth;
-    const cameraHeight = cameraSize * screenHeight;
+    let cameraWidth;
+    let cameraHeight;
+    switch (selfieSize) {
+      case SelfieSize.None:
+        cameraWidth = 0;
+        cameraHeight = 0;
+        break;
+      case SelfieSize.SmallCircle:
+        cameraWidth = 0.2 * screenWidth;
+        cameraHeight = 0.2 * screenHeight;
+
+        cameraStreamState.left = screenWidth - cameraWidth;
+        cameraStreamState.top = screenHeight - cameraHeight - 20;
+
+        break;
+      case SelfieSize.Rectangle:
+        cameraWidth = 0.5 * screenWidth;
+        cameraHeight = 0.5 * screenHeight;
+
+        cameraStreamState.left = screenWidth - (1.25 * cameraHeight);
+        cameraStreamState.top = (screenHeight - cameraHeight) / 2;
+
+        break;
+      default:
+        cameraWidth = 0;
+        cameraHeight = 0;
+        break;
+    }
 
     cameraStreamState.width = cameraWidth;
     cameraStreamState.height = cameraHeight;
-    cameraStreamState.left = screenWidth - cameraWidth;
-    cameraStreamState.top = screenHeight - cameraHeight - 20;
 
     setX(cameraStreamState.left);
     setY(cameraStreamState.top);
 
-    maskCameraStreamToCircle(cameraStreamState);
-
+    switch (selfieSize) {
+      case SelfieSize.SmallCircle:
+        maskCameraStreamToCircle(cameraStreamState);
+        break;
+      case SelfieSize.Rectangle:
+        maskCameraStreamToPortrait(cameraStreamState);
+        break;
+      default:
+        break;
+    }
+      
     if (screenStreamState != null) {
       screenStreamState.fullcanvas = true;
       screenStreamState.width = screenWidth;
@@ -227,7 +288,7 @@ const App: React.FC = () => {
       emptyScreenStream.height = screenHeight;
       mixer = new MultiStreamsMixer([emptyScreenStream, cameraStreamState]);
     }
-    
+
     mixer.frameInterval = 1;
     mixer.startDrawingFrames();
 
@@ -240,10 +301,11 @@ const App: React.FC = () => {
     try {
       if (navigator.mediaDevices.getDisplayMedia) {
         captureStream = await navigator.mediaDevices
-          .getDisplayMedia({ video: {
-            displaySurface: 'monitor',
-          } 
-        });
+          .getDisplayMedia({
+            video: {
+              displaySurface: 'monitor',
+            }
+          });
       }
     } catch (err) {
       alert("getDisplayMedia API is not supported by this browser.");
@@ -260,8 +322,8 @@ const App: React.FC = () => {
       captureStream = await navigator.mediaDevices.getUserMedia({
         video: {
           deviceId: selectedVideoDevice,
-          width: window.screen.width * cameraSize,
-          height: window.screen.height * cameraSize,
+          width: window.screen.width * 0.2,
+          height: window.screen.height * 0.2,
           frameRate: 15
         },
         audio: {
@@ -333,7 +395,7 @@ const App: React.FC = () => {
   // This is inefficient cuz we need to pull all data into memory
   async function readChunksAndDownload() {
     const indexedDBStream = new IndexedDBStream(db, storeName, chunkIndex);
-  
+
     const readableStream = new ReadableStream({
       async pull(controller) {
         const chunk = await indexedDBStream.getNextChunk();
@@ -344,7 +406,7 @@ const App: React.FC = () => {
         }
       },
     });
-  
+
     // Read the stream into an array
     const reader = readableStream.getReader();
     const chunks = [];
@@ -353,26 +415,26 @@ const App: React.FC = () => {
       if (done) break;
       chunks.push(value);
     }
-  
+
     // Create a Blob from the array of chunks
     const blob = new Blob(chunks, { type: "video/webm" });
-  
+
     // Create a Blob URL
     const url = URL.createObjectURL(blob);
-  
+
     // Create an anchor element
     const a = document.createElement('a');
     a.href = url;
     a.download = `Recording-${new Date().toISOString()}.webm`;
-  
+
     // Append the anchor element to the document, click it, and remove it afterward
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  
+
     // Reset the recording state
     setStart(false);
-  }  
+  }
 
   // async function readChunksAndDownload() {
   //   const indexedDBStream = new IndexedDBStream(db, storeName, chunkIndex);
@@ -460,7 +522,7 @@ const App: React.FC = () => {
               Your browser does not support the video tag.
             </video>
             <div
-              className="camera-selfie"
+              className={"camera-selfie " + selfieSize}
               ref={cameraSelfieRef}
               {...bind()}
             ></div>
