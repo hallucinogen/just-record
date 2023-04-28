@@ -38,8 +38,8 @@ const styles: { [key: string]: React.CSSProperties } = {
 const SizeSelector: React.FC<Props> = ({ selectedSize, onSizeSelect, style }) => {
   const sizes = [
     { name: SelfieSize.None, emoji: '✖️', fontSize: '20px' },
-    { name: SelfieSize.SmallCircle, emoji: '◯', fontSize: '12px' },
-    { name: SelfieSize.Rectangle, emoji: '◯', fontSize: '24px' },
+    { name: SelfieSize.SmallCircle, emoji: '◯', fontSize: '16px' },
+    { name: SelfieSize.Rectangle, emoji: '⛶', fontSize: '24px' },
   ];
 
   return (

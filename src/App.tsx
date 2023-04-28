@@ -7,6 +7,7 @@ import MediaDeviceSelector from "./MediaDeviceSelector";
 import { useDrag } from "react-use-gesture";
 import { IDBPDatabase, openDB } from "idb";
 import { SelfieSize } from './types/SelfieSize';
+import JSZip from "jszip";
 
 // TODO: All of these garbages need to move out of from this place and make the
 // code less stateful
