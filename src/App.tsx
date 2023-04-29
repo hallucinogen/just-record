@@ -9,6 +9,7 @@ import { IDBPDatabase, openDB } from "idb";
 import { SelfieSize } from './types/SelfieSize';
 import JSZip from "jszip";
 
+
 // TODO: All of these garbages need to move out of from this place and make the
 // code less stateful
 let db: IDBPDatabase<unknown>;
@@ -16,8 +17,8 @@ const dbName = "videoChunksDB";
 const storeName = "videoChunks";
 
 let mixer: MultiStreamsMixer;
-let mediaRecorder: MediaRecorder;
-let chunkIndex = 0;
+let mediaRecorders: Array<MediaRecorder> = [];
+let chunkIndexes = [0, 0, 0];
 let cameraStreamState: MediaStream;
 let screenStreamState: MediaStream;
 let selectedAudioDevice: string = null;
@@ -50,9 +51,12 @@ class IndexedDBStream {
 }
 
 async function initDb() {
-  db = await openDB(dbName, 1, {
+  db = await openDB(dbName, 2, {
     upgrade(db) {
-      db.createObjectStore(storeName);
+      // Create object stores for each stream
+      db.createObjectStore(`${storeName}_0`);
+      db.createObjectStore(`${storeName}_1`);
+      db.createObjectStore(`${storeName}_2`);
     },
   });
 }
@@ -193,6 +197,7 @@ const App: React.FC = () => {
   );
 
   useEffect(() => {
+    initDb();
     let handlePermission = async () => {
       let camera = await cameraStream();
       if (camera === null) {
@@ -202,7 +207,6 @@ const App: React.FC = () => {
       }
     };
     handlePermission();
-    initDb();
   }, []);
 
   function updateScreenRendering() {
@@ -346,7 +350,7 @@ const App: React.FC = () => {
       updateScreenRendering();
     }
 
-    chunkIndex = 0;
+    chunkIndexes = [0, 0, 0];
     let options = { mimeType: "video/webm;codecs=vp9,opus" };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
       console.error(`${options.mimeType} is not supported`);
@@ -361,18 +365,26 @@ const App: React.FC = () => {
       }
     }
 
+    const streams = [
+      screenStreamState,
+      cameraStreamState,
+      mixer.getMixedStream(),
+    ];
+
     try {
-      mediaRecorder = new MediaRecorder(mixer.getMixedStream(), options);
+      mediaRecorders = streams.map((stream) => new MediaRecorder(stream, options));
     } catch (e) {
       console.error("Exception while creating MediaRecorder:", e);
       return;
     }
 
-    mediaRecorder.onstop = async (event) => {
-      await readChunksAndDownload();
-    };
-    mediaRecorder.ondataavailable = handleDataAvailable;
-    mediaRecorder.start(1000);
+    mediaRecorders.forEach((recorder, idx) => {
+      recorder.onstop = async (event) => {
+        await stopRecording();
+      };
+      recorder.ondataavailable = (event) => handleDataAvailable(event, idx);
+      recorder.start(1000);
+    });
     setStart(true);
 
     if (!licenseKeyValid) {
@@ -382,20 +394,29 @@ const App: React.FC = () => {
     }
   }
 
-  function stopRecording() {
-    mediaRecorder.stop();
+  async function stopRecording() {
+    let stopPromises = mediaRecorders.map((recorder) => new Promise((resolve) => {
+      recorder.onstop = resolve;
+      recorder.stop();
+    }));
+  
+    await Promise.all(stopPromises);
+  
+    const blobs = await Promise.all(mediaRecorders.map((_, streamIdx) => readChunksAndDownload(streamIdx)));
+    await createZipAndDownload(blobs);
   }
 
-  async function handleDataAvailable(event: any) {
-    console.log("handleDataAvailable", event);
+  async function handleDataAvailable(event: any, streamIdx: number) {
     if (event.data && event.data.size > 0) {
-      await db.put(storeName, event.data, chunkIndex++);
+      console.log(`Stream ${streamIdx} data:`, event.data);
+
+      await db.put(`${storeName}_${streamIdx}`, event.data, chunkIndexes[streamIdx]++);
     }
   }
 
   // This is inefficient cuz we need to pull all data into memory
-  async function readChunksAndDownload() {
-    const indexedDBStream = new IndexedDBStream(db, storeName, chunkIndex);
+  async function readChunksAndDownload(streamIdx) {
+    const indexedDBStream = new IndexedDBStream(db, `${storeName}_${streamIdx}`, chunkIndexes[streamIdx]++);
 
     const readableStream = new ReadableStream({
       async pull(controller) {
@@ -420,21 +441,31 @@ const App: React.FC = () => {
     // Create a Blob from the array of chunks
     const blob = new Blob(chunks, { type: "video/webm" });
 
-    // Create a Blob URL
-    const url = URL.createObjectURL(blob);
-
-    // Create an anchor element
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Recording-${new Date().toISOString()}.webm`;
-
-    // Append the anchor element to the document, click it, and remove it afterward
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
     // Reset the recording state
     setStart(false);
+
+    return blob;
+  }
+
+  async function createZipAndDownload(blobs) {
+    const zip = new JSZip();
+  
+    // Add each Blob to the zip archive
+    zip.file(`Screen-${new Date().toISOString()}.webm`, blobs[0]);
+    zip.file(`Camera-${new Date().toISOString()}.webm`, blobs[1]);
+    zip.file(`Combined-${new Date().toISOString()}.webm`, blobs[2]);
+  
+    // Generate the zip archive
+    const content = await zip.generateAsync({ type: "blob" });
+  
+    // Create a download link in the DOM and trigger the download
+    const downloadLink = document.createElement("a");
+    downloadLink.href = URL.createObjectURL(content);
+    downloadLink.download = `Recordings-${new Date().toISOString()}.zip`;
+    downloadLink.style.display = "none";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   }
 
   // async function readChunksAndDownload() {
